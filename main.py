@@ -2,8 +2,8 @@ import json
 from os import system, name 
 from time import sleep
 from collections import Counter
+import math
 
-# define our clear function 
 def clear(): 
     # for windows 
     if name == 'nt': 
@@ -18,26 +18,63 @@ def get_race_dict(race_name):
 		if item['name'] == race_name:
 			return item
 
+def get_class_dict(class_name):
+	for key,value in classes.items():
+		if key.lower() == class_name.lower():
+			return value
+
+def get_back_ground_dict(background_name):
+	for background in backgrounds:
+		if background['name'].lower() == background_name.lower():
+			return background
+
+def get_modifier_string(number):
+	calculated_trunc_int = math.trunc((number - 10)/2)
+	if calculated_trunc_int > -1:
+		return f"+{calculated_trunc_int}"
+	else:
+		return f"{calculated_trunc_int}"
+
+def get_nice_stat_name(stat_name):
+	nice_dict = {
+		'str': 'Strength',
+		'dex': 'Dexterity',
+		'con': 'Constitution',
+		'int': 'Intelligence',
+		'wis': 'Wisdom',
+		'cha': 'Charisma'
+	}
+	return nice_dict.get(stat_name)
+
 with open('phb_data/classes.json') as class_raw:
 	classes = json.load(class_raw)
 
 with open('phb_data/races.json') as race_raw:
 	races = json.load(race_raw)
 
+with open('phb_data/backgrounds.json') as backgrounds_raw:
+	backgrounds = json.load(backgrounds_raw)
+
+
 class character:
-	def __init__(self,race,subrace,class_,name, ability_scores):
+	def __init__(self,race,subrace,class_,name, ability_scores,proficiency_list,background):
 		self.race = race
 		self.subrace = subrace
 		self.class_ = class_
 		self.name = name
 		self.specific_race_dict = get_race_dict(race)
 		self.specific_subrace_dict = None
+		self.specific_class_dict = get_class_dict(class_)
 		self.ability_score_bonus = None
 		self.calc_ability_score_bonus()
 		self.ability_scores = ability_scores
-
+		self.update_ability_scores(self.ability_score_bonus)
+		self.proficiency_list = proficiency_list
+		self.specific_background_dict = get_back_ground_dict(background)
+		self.background = background
 
 		
+	#ABILITY SCORE BONUS CALCULATION
 
 	def calc_ability_score_bonus(self):
 		if self.subrace == None:
@@ -46,10 +83,16 @@ class character:
 			for subrace in self.specific_race_dict['subraces']:
 				if subrace['name'] == self.subrace:
 					self.specific_subrace_dict = subrace
-
 			subrace_bonus = self.specific_subrace_dict['ability']
 			self.ability_score_bonus = dict(Counter(self.specific_race_dict['ability'][0]) + Counter(self.specific_subrace_dict['ability'][0]))
-			
+	
+	def update_ability_scores(self,as_dict):
+		self.ability_scores = dict(Counter(self.ability_scores) + Counter(self.ability_score_bonus))
+
+	def get_basic_ability_modifiers(self):
+		for key,value in self.ability_scores.items():
+			print(f"{get_nice_stat_name(key)}: {get_modifier_string(self.ability_scores[key])} ({self.ability_scores[key]})")
+
 
 	@classmethod
 	def create(cls):
@@ -83,7 +126,9 @@ class character:
 		for x in [name['name'] for name in races]:
 			print(x)
 		print('---')
+
 		#RACE
+
 		race_input = input('Type in the race you want to play: ')
 		if race_input.lower() not in [name['name'].lower() for name in races]:
 			print(f"{race_input}??? I have never heard of that people. Can you try again?")
@@ -94,7 +139,9 @@ class character:
 			print(f"{race_input}??? I have never heard of that people. Can you try again?")
 		race_input = race_input.lower().title()
 		print('---')
+
 		#SUBRACE
+
 		subrace_count = 0
 		subraces_name_list = []
 		for race in races:
@@ -122,11 +169,15 @@ class character:
 					break
 				print(f"{subrace_input} is not a valid subrace. Be honest...")
 			subrace_input = subrace_input.lower().title()
+		
 		#NAME
+
 		print(f"Alright {race_input}, how you you call yourself?")
 		name_input = input("Tell me your full name: ")
 		name_input = name_input.lower().title()
+
 		#ABILITY SCORE
+		
 		print('---')
 		print('Alright, time to distribute your ability score points.')
 		score_list_value = [15,14,13,12,10,8]
@@ -153,12 +204,12 @@ class character:
 			#print(f"{int(score_list_dict[ability_name])} - {type(int(score_list_dict[ability_name]))}")
 			if ability_score_input not in [str(x) for x in score_list_value]:
 				#score_list_dict[ability_name] = 0
-				print(f"Oops1, that is not possible. Choose from {score_list_value}.")
+				print(f"Oops, that is not possible. Choose from {score_list_value}.")
 				#score_list_dict[ability_name] = int(input(f"Chose your {ability_name} score: "))
 				ability_score_input = input(f"Chose your {ability_name} score: ")
 			while ability_score_input not in [str(x) for x in score_list_value]:
 				#score_list_dict[ability_name] = 0
-				print(f"Oops2, that is not possible. Choose from {score_list_value}.")
+				print(f"Oops, that is not possible. Choose from {score_list_value}.")
 				#score_list_dict[ability_name] = int(input(f"Chose your {ability_name} score: "))
 				ability_score_input = input(f"Chose your {ability_name} score: ")
 				if ability_score_input in [str(x) for x in score_list_value]:
@@ -168,23 +219,65 @@ class character:
 			score_list_value.remove(int(ability_score_input))
 			score_list_dict[ability_name] = int(ability_score_input)
 
-		print(score_list_dict)
+		class_dict = get_class_dict(class_input.lower())
+		prof_list = class_dict['class'][0]['proficiency']
+
+		#BACKGROUND
+
+		print('Aaaight, choose your background from one of the following:')
+		print('---')
+		for background in backgrounds:
+			if '_copy' not in background:
+				print(f"{background['name']} - (Page: {background['page']})")
+		print('---')
+		background_input = input('Your background choice: ')
+		background_check_count = 0
+		for background in backgrounds:
+			#print(f"BACKGROUND FROM FILE: {background['name']}")
+			if background_input.lower() == background['name'].lower():
+				print(f"{background_input}s usually are proficient in {background['entries'][0]['items'][0]['entry']}")
+				background_prof_list = background['entries'][0]['items'][0]['entry'].split(',')
+				for background_prof in background_prof_list:
+					prof_list.append(background_prof)
+				background_check_count += 1
+		if background_check_count == 0:
+			raise Exception("Background not found. Type more accurately.")
+		
+		
+		print('')
+
+		# CLASS PROFICIENCIES
+
+		class_prof = class_dict['class'][0]['startingProficiencies']['skills'][0]['choose']
+		print(f"{class_input}s typically choose {class_prof['count']} from the following proficiencies:")
+		print('Dont take the ones from your background obviously...')
+		for prof in class_dict['class'][0]['startingProficiencies']['skills'][0]['choose']['from']:
+			print(prof)
+		
+		for i in range(class_prof['count']):
+			prof_list.append(input(f'your {i+1}. choice: '))
+
 		
 		#CREATION
-		char = cls(race=race_input,subrace=subrace_input,class_=class_input,name=name_input,ability_scores=score_list_dict)
+		char = cls(race=race_input,subrace=subrace_input,class_=class_input,name=name_input,ability_scores=score_list_dict,proficiency_list=prof_list,background=background_input)
 		return char
-
-
-
 
 	def __str__(self):
 		if self.subrace == None:
 			subrace_string = ''
 		else:
 			subrace_string = f"{self.subrace} "
-		return f"A {subrace_string}{self.race} named {self.name}."
+		return f"A {subrace_string}{self.race} {self.class_} named {self.name}."
 
 
 char1 = character.create()
 
+print('-----')
+print('-----')
+print('-----')
 print(char1)
+print('')
+#print(f"ability score set: {char1.ability_scores}")
+print(f"proficiency list: {char1.proficiency_list}")
+print('')
+char1.get_basic_ability_modifiers()
