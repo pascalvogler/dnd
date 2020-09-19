@@ -3,6 +3,7 @@ from os import system, name
 from time import sleep
 from collections import Counter
 import math
+import random
 
 def clear(): 
     # for windows 
@@ -180,7 +181,25 @@ class character:
 		
 		print('---')
 		print('Alright, time to distribute your ability score points.')
-		score_list_value = [15,14,13,12,10,8]
+		print('You can choose now to either distribute a preset set (15,14,13,12,10,8)...')
+		print('Ooooor you can roll it out, much more fun, I promise (or not).')
+		as_method_input = input('Type "random" or "preset": ')
+		if as_method_input == 'random':
+			score_list_value = []
+			for i in range(6):
+				as_values = []
+				for x in range(4):
+					as_values.append(random.randint(1,6))
+				smallest_value = min(as_values)
+				print(f"i rolled: {as_values}")
+				print(f"smalles value is {smallest_value}")
+				as_values.remove(smallest_value)
+				print(f"adding {sum(as_values)} to final list")
+				score_list_value.append(sum(as_values))
+			score_list_value.sort(reverse=True)
+		elif as_method_input == 'preset':
+			score_list_value = [15,14,13,12,10,8]
+
 		score_list_dict = {
 			'str':0,
 			'dex':0,
@@ -189,7 +208,7 @@ class character:
 			'wis':0,
 			'cha':0
 		}
-		print('you can distribute 15,14,13,12,10,8 to your ability scores. You have the following:')
+		print(f"you can distribute {score_list_value[0]},{score_list_value[1]},{score_list_value[2]},{score_list_value[3]},{score_list_value[4]},{score_list_value[5]} to your ability scores. You have the following:")
 		print('---')
 		print('Strength')
 		print('Dexterity')
