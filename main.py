@@ -6,6 +6,9 @@ import math
 import random
 import re
 
+#To Do!
+# Ability Score Bonus: {'cha': 2, 'choose': {'from': ['str', 'dex', 'con', 'int', 'wis'], 'count': 2}}
+
 def clear(): 
     # for windows 
     if name == 'nt': 
@@ -75,6 +78,7 @@ class character:
 		self.specific_background_dict = get_back_ground_dict(background)
 		self.background = background
 		self.alignment = alignment
+		self.update_proficiency_list()
 
 		
 	#ABILITY SCORE BONUS CALCULATION
@@ -90,11 +94,21 @@ class character:
 			self.ability_score_bonus = dict(Counter(self.specific_race_dict['ability'][0]) + Counter(self.specific_subrace_dict['ability'][0]))
 	
 	def update_ability_scores(self,as_dict):
+		print(f"Ability Score: {self.ability_scores}")
+		print(f"Ability Score Bonus: {self.ability_score_bonus}")
 		self.ability_scores = dict(Counter(self.ability_scores) + Counter(self.ability_score_bonus))
 
 	def get_basic_ability_modifiers(self):
 		for key,value in self.ability_scores.items():
 			print(f"{get_nice_stat_name(key)}: {get_modifier_string(self.ability_scores[key])} ({self.ability_scores[key]})")
+
+	def update_proficiency_list(self):
+		if 'armor' in self.specific_class_dict['class'][0]['startingProficiencies']:
+			self.proficiency_list['armor'] = self.specific_class_dict['class'][0]['startingProficiencies']['armor']
+		if 'weapons' in self.specific_class_dict['class'][0]['startingProficiencies']:
+			self.proficiency_list['weapons'] = self.specific_class_dict['class'][0]['startingProficiencies']['weapons']
+		if 'tools' in self.specific_class_dict['class'][0]['startingProficiencies']:
+			self.proficiency_list['tools'] = self.specific_class_dict['class'][0]['startingProficiencies']['tools']
 
 
 	@classmethod
@@ -127,14 +141,14 @@ class character:
 		print(f"Nice, so a {class_input.lower()} it is.")
 		sleep(2)
 		clear()
-		#print('---')
-		print('Now you have to select a race. Check the possibilities:')
-		for x in [name['name'] for name in races]:
-			print(x)
-		print('---')
 
 		#RACE
 
+		print('Now you have to select a race. Check the possibilities:')
+		print('---')
+		for x in [name['name'] for name in races]:
+			print(x)
+		print('---')
 		race_input = input('Type in the race you want to play: ')
 		if race_input.lower() not in [name['name'].lower() for name in races]:
 			print(f"{race_input}??? I have never heard of that people. Can you try again?")
@@ -269,7 +283,10 @@ class character:
 				score_list_dict[ability_name] = int(ability_score_input)
 
 		class_dict = get_class_dict(class_input.lower())
-		prof_list = class_dict['class'][0]['proficiency']
+		prof_list = {
+			'saving_throws': class_dict['class'][0]['proficiency'],
+			'skills': []
+			}
 		sleep(1)
 		clear()
 		#BACKGROUND
@@ -285,33 +302,34 @@ class character:
 		for background in backgrounds:
 			#print(f"BACKGROUND FROM FILE: {background['name']}")
 			if background_input.lower() == background['name'].lower():
-				print(f"{background_input}s usually are proficient in {background['entries'][0]['items'][0]['entry']}")
+				print(f"{background_input}s usually are proficient in:")
 				background_prof_list = background['entries'][0]['items'][0]['entry'].split(',')
 				for background_prof in background_prof_list:
 					background_prof_nice = re.search('\{@skill (.*)\}', background_prof, re.IGNORECASE)
-					print(f"Nice: {background_prof_nice.group(1)}")
-					prof_list.append(background_prof_nice.group(1).lower())
+					print(background_prof_nice.group(1))
+					prof_list['skills'].append(background_prof_nice.group(1).lower())
 				background_check_count += 1
 		if background_check_count == 0:
 			raise Exception("Background not found. Type more accurately.")
 		
 		
 		print('')
-		sleep(1)
+		sleep(3)
 		clear()
 		# CLASS PROFICIENCIES
 
 		class_prof = class_dict['class'][0]['startingProficiencies']['skills'][0]['choose']
 		print(f"{class_input}s typically choose {class_prof['count']} from the following proficiencies:")
-		print('Dont take the ones from your background obviously...')
+		print('(Dont take the ones from your background obviously...)')
+		print('------')
 		for prof in class_dict['class'][0]['startingProficiencies']['skills'][0]['choose']['from']:
-			if prof in prof_list:
-				print(f"{prof} (you already have that!)")
+			if prof in prof_list['skills']:
+				print(f"{prof} (you already have that from your background!)")
 			else:
 				print(prof)
-		
+		print('------')
 		for i in range(class_prof['count']):
-			prof_list.append(input(f'your {i+1}. choice: '))
+			prof_list['skills'].append(input(f'your {i+1}. choice: '))
 		sleep(1)
 		clear()
 		# ALIGNMENT
@@ -351,7 +369,7 @@ class character:
 			subrace_string = ''
 		else:
 			subrace_string = f"{self.subrace} "
-		return f"A {subrace_string}{self.race} {self.class_} named {self.name}.\nBackground: {self.background}\nAlignment: {self.alignment}"
+		return f"A {subrace_string}{self.race} {self.class_} named {self.name}.\nBackground: {self.background} (see page {self.specific_background_dict['page']})\nAlignment: {self.alignment}"
 
 
 char1 = character.create()
